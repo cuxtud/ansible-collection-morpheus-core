@@ -63,6 +63,7 @@ class InventoryModule(BaseInventoryPlugin):
         self.workspace = ""
         self.groups = None
         self.verbose = False
+        self.servers = False
 
     def print_verbose_message(self, msg):
         if self.verbose:
@@ -88,7 +89,7 @@ class InventoryModule(BaseInventoryPlugin):
             self.print_verbose_message("Using old metadata model")
     
     def _check_servers_if_set(self):
-        servers = self.morpheus_opt_args['servers']
+        servers = self.servers
         if servers == True: 
             vpath = "/servers?max=-1"
         else:
@@ -100,7 +101,7 @@ class InventoryModule(BaseInventoryPlugin):
                    "Content-Type": "application/json"}
         method = "get"
         verify = self.morpheus_opt_args['sslverify']
-        vpath = self._check_servers_if_set()
+        vpath = self._check_servers_if_set(self)
         if searchtype in ["label", "name", "tag"]:
             path = vpath
         elif searchtype == "app":
@@ -243,7 +244,7 @@ class InventoryModule(BaseInventoryPlugin):
 
     def _filter_morpheus_output(self, rawresponse, group, searchtype, searchstring, servers):
         self.print_verbose_message("Found a total of %s instances" % rawresponse['meta']['total'])
-        servers = self.morpheus_opt_args['servers']
+        servers = self.servers
         if self.morpheus_env:
             try:
                 for file in os.listdir(self.workspace):
