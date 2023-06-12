@@ -22,6 +22,9 @@ DOCUMENTATION = r'''
             description: Morpheus Inventory
             required: true
             choices: ['morpheus_inventory', 'morpheus.core.morpheus_inventory']
+        servers:
+            description: Search for servers/vm and grouped by instances. Requires searchtype and searchstring, if not set defaults to instances.
+            required: false
         groups:
             description: whatever
             required: true
@@ -83,15 +86,23 @@ class InventoryModule(BaseInventoryPlugin):
         if (version.parse(self.morpheus_version) >= version.parse("5.0")) and (version.parse(self.morpheus_version) < version.parse("5.2.1")):
             self.morpheus_oldmetadata = True
             self.print_verbose_message("Using old metadata model")
+    
+    def _check_servers_if_set(self):
+        servers = self.morpheus_opt_args['servers']
+        if servers == True: 
+            vpath = "/servers?max=-1"
+        else:
+            vpath = "/instances?max=-1"
+        return vpath
 
-    def _get_data_from_morpheus(self, searchtype, searchstring=None):
+    def _get_data_from_morpheus(self, searchtype, servers, searchstring=None):
         headers = {'Authorization': "BEARER %s" % self.morpheus_token,
                    "Content-Type": "application/json"}
         method = "get"
         verify = self.morpheus_opt_args['sslverify']
-
+        vpath = self._check_servers_if_set()
         if searchtype in ["label", "name", "tag"]:
-            path = "/instances?max=-1"
+            path = vpath
         elif searchtype == "app":
             path = "/apps?max=-1"
         elif searchtype == "cloud":
@@ -230,8 +241,9 @@ class InventoryModule(BaseInventoryPlugin):
             containerid = containerdata['containers'][0]['id']
             self._add_morpheus_container(group, containerid, containerdata['containers'][0], platform_query)
 
-    def _filter_morpheus_output(self, rawresponse, group, searchtype, searchstring):
+    def _filter_morpheus_output(self, rawresponse, group, searchtype, searchstring, servers):
         self.print_verbose_message("Found a total of %s instances" % rawresponse['meta']['total'])
+        servers = self.morpheus_opt_args['servers']
         if self.morpheus_env:
             try:
                 for file in os.listdir(self.workspace):
@@ -256,6 +268,12 @@ class InventoryModule(BaseInventoryPlugin):
             for instance in rawresponse['instances']:
                 if searchstring in instance['name']:
                     self.print_verbose_message("Matched %s with name %s, adding to group %s" % (instance['name'], searchstring, group))
+                    self._add_morpheus_instance(group, instance)
+        # Adding support for server search
+        elif searchtype == "name" and servers == True:
+            for srvrs in rawresponse['servers']:
+                if searchstring in srvrs['name']:
+                    self.print_verbose_message("Matched %s with name %s, adding to group %s" % (srvrs['name'], searchstring, group))
                     self._add_morpheus_instance(group, instance)
         elif searchtype == "app":
             for app in rawresponse['apps']:
