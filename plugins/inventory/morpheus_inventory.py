@@ -89,7 +89,7 @@ class InventoryModule(BaseInventoryPlugin):
             self.print_verbose_message("Using old metadata model")
     
     def _check_servers_if_set(self):
-        print("check server function... Processing servers")
+        self.print_verbose_message("check server function... Processing servers")
         servers = self.servers
         if servers == True: 
             vpath = "/servers?max=-1"
@@ -103,7 +103,7 @@ class InventoryModule(BaseInventoryPlugin):
         method = "get"
         verify = self.morpheus_opt_args['sslverify']
         vpath = self._check_servers_if_set(self)
-        print("Value of vpath : %s") % (vpath)
+        self.print_verbose_message("Value of vpath : %s") % (vpath)
         if searchtype in ["label", "name", "tag"]:
             path = vpath
         elif searchtype == "app":
