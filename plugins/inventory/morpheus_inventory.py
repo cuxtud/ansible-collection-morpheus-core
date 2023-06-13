@@ -103,6 +103,7 @@ class InventoryModule(BaseInventoryPlugin):
         method = "get"
         verify = self.morpheus_opt_args['sslverify']
         vpath = self._check_servers_if_set(self)
+        print("Value of vpath : %s") % (vpath)
         if searchtype in ["label", "name", "tag"]:
             path = vpath
         elif searchtype == "app":
