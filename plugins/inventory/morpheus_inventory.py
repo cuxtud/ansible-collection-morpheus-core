@@ -89,6 +89,7 @@ class InventoryModule(BaseInventoryPlugin):
             self.print_verbose_message("Using old metadata model")
     
     def _check_servers_if_set(self):
+        print("check server function... Processing servers")
         servers = self.servers
         if servers == True: 
             vpath = "/servers?max=-1"
