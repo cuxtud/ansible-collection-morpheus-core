@@ -95,6 +95,7 @@ Within Morpheus, the dynamic inventory plugin will query the API and return a se
 |---|---|---|
 |plugin|yes|Use `morpheus_inventory` to activate the plugin|
 |groups|yes||List used for group definition|
+|servers|no|search for servers with searchtype and searchstring .. **In Development|
 |name|yes|Required except for `cloud` search types|
 |searchtype|yes|Search type for host matching.  Values: `label`, `name`, `app`, `cloud`, `tag`|
 |searchstring|yes|Search string - the `app` and `tag` types uses this as a list, otherwise it is a string|
