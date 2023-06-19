@@ -90,20 +90,20 @@ class InventoryModule(BaseInventoryPlugin):
     
     def _check_servers_if_set(self):
         self.print_verbose_message("check server function... Processing servers")
-        servers = self.servers
-        if servers == True: 
-            vpath = "/servers?max=-1"
-        else:
-            vpath = "/instances?max=-1"
-        return vpath
+        for group in self.groups:
+            if group['servers'] == True: 
+                vpath = "/servers?max=-1"
+            else:
+                vpath = "/instances?max=-1"
+            return vpath
 
     def _get_data_from_morpheus(self, searchtype, servers, searchstring=None):
         headers = {'Authorization': "BEARER %s" % self.morpheus_token,
                    "Content-Type": "application/json"}
         method = "get"
         verify = self.morpheus_opt_args['sslverify']
-        vpath = self._check_servers_if_set(self)
-        self.print_verbose_message("Value of vpath : %s") % (vpath)
+        vpath = self._check_servers_if_set()
+        self.print_verbose_message("Value of vpath : %s" % vpath)
         if searchtype in ["label", "name", "tag"]:
             path = vpath
         elif searchtype == "app":
@@ -228,6 +228,24 @@ class InventoryModule(BaseInventoryPlugin):
                                         'ansible_host',
                                         container['ip'])
 
+    def _add_morpheus_servers(self, group, instance):
+        platform_query = False
+        if group == "platform_query":
+            platform_query = True
+
+        # if len(instance['containers']) > 1:
+        #     containerdata = self._get_containers_from_morpheus(instance['id'])
+        #     for containerid in instance['containers']:
+        #         for container in containerdata['containers']:
+        #             if containerid == container['id']:
+        #                 self._add_morpheus_container(group, containerid, container, platform_query)
+        # else:
+        #containerdata = self._get_containers_from_morpheus(instance['id'])
+        #containerid = containerdata['containers'][0]['id']
+        containerid = instance[0]['id']
+        self._add_morpheus_container(group, containerid, instance[0], platform_query)
+        # self._add_morpheus_container(group, containerid, containerdata['containers'][0], platform_query)
+
     def _add_morpheus_instance(self, group, instance):
         platform_query = False
         if group == "platform_query":
@@ -246,7 +264,9 @@ class InventoryModule(BaseInventoryPlugin):
 
     def _filter_morpheus_output(self, rawresponse, group, searchtype, searchstring, servers):
         self.print_verbose_message("Found a total of %s instances" % rawresponse['meta']['total'])
-        servers = self.servers
+        for group in self.groups:
+            servers = group['servers']
+        self.print_verbose_message("Servers value: %s" % servers)
         if self.morpheus_env:
             try:
                 for file in os.listdir(self.workspace):
@@ -267,17 +287,20 @@ class InventoryModule(BaseInventoryPlugin):
                         if str(searchstring).lower() == str(tag).lower():
                             self.print_verbose_message("Matched %s with label %s, adding to group %s" % (instance['name'], tag, group))
                             self._add_morpheus_instance(group, instance)
+        # Adding support for server search
+        elif searchtype == "name" and servers == True:
+            for instance in rawresponse['servers']:
+                if searchstring in instance['name']:
+                    self.print_verbose_message("Server name : %s" % instance['name'])
+                    self.print_verbose_message("Matched %s with name %s, adding to group %s" % (instance['name'], searchstring, group))
+                    self._add_morpheus_servers(group, instance)
+
         elif searchtype == "name":
             for instance in rawresponse['instances']:
                 if searchstring in instance['name']:
                     self.print_verbose_message("Matched %s with name %s, adding to group %s" % (instance['name'], searchstring, group))
                     self._add_morpheus_instance(group, instance)
-        # Adding support for server search
-        elif searchtype == "name" and servers == True:
-            for srvrs in rawresponse['servers']:
-                if searchstring in srvrs['name']:
-                    self.print_verbose_message("Matched %s with name %s, adding to group %s" % (srvrs['name'], searchstring, group))
-                    self._add_morpheus_instance(group, instance)
+        
         elif searchtype == "app":
             for app in rawresponse['apps']:
                 if searchstring['appname'].lower() == app['name'].lower() and \
@@ -378,8 +401,13 @@ class InventoryModule(BaseInventoryPlugin):
                 self.print_verbose_message("Processing cloud %s" % group['searchstring'])
                 rawoutput = self._get_data_from_morpheus(searchtype=group['searchtype'], searchstring=group['searchstring'])
                 self._filter_morpheus_output(rawoutput, None, group['searchtype'], group['searchstring'])
+            elif group['servers'] == True and group['searchtype'] == "name":
+                self.print_verbose_message("Servers matched. Processing group %s" % group['name'])
+                self.inventory.add_group(group['name'])
+                rawoutput = self._get_data_from_morpheus(searchtype=group['searchtype'],servers=group['servers'])
+                self._filter_morpheus_output(rawoutput, group['name'], group['searchtype'], group['searchstring'],servers=group['servers'])
             else:
-                self.print_verbose_message("Processing group %s" % group['name'])
+                self.print_verbose_message("This is the else. Processing group %s" % group['name'])
                 self.inventory.add_group(group['name'])
                 rawoutput = self._get_data_from_morpheus(searchtype=group['searchtype'])
                 self._filter_morpheus_output(rawoutput, group['name'], group['searchtype'], group['searchstring'])
